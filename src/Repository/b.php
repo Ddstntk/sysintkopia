@@ -30,13 +30,11 @@ class BookmarksRepository
     /**
      * BookmarksRepository constructor.
      *
-     *
      * @param \Doctrine\DBAL\Connection $db
      */
     public function __construct(Connection $db)
     {
         $this->db = $db;
-        $this->tagsRepository = new TagsRepository($db);
     }
 
     /**
@@ -50,12 +48,7 @@ class BookmarksRepository
 
         return $queryBuilder->execute()->fetchAll();
     }
-    /**
-     * Tags repository.
-     *
-     * @var null|\Repository\TagsRepository $tagsRepository
-     */
-    protected $tagsRepository = null;
+
     /**
      * Get records paginated.
      *
@@ -76,6 +69,27 @@ class BookmarksRepository
         return $paginator->getCurrentPageResults();
     }
 
+    /**
+     * Find one record.
+     *
+     * @param string $id Element id
+     *
+     * @return array|mixed Result
+     */
+    public function findOneById($id)
+    {
+        $queryBuilder = $this->queryAll();
+        $queryBuilder->where('b.id = :id')
+            ->setParameter(':id', $id, \PDO::PARAM_INT);
+        $result = $queryBuilder->execute()->fetch();
+
+        if ($result) {
+            // TODO: remove current() after multi select implementation
+            $result['tags'] = current($this->findLinkedTagsIds($result['id']));
+        }
+
+        return $result;
+    }
 
     /**
      * Save record.
@@ -91,7 +105,7 @@ class BookmarksRepository
         try {
             $currentDateTime = new \DateTime();
             $bookmark['modified_at'] = $currentDateTime->format('Y-m-d H:i:s');
-            $tagsIds = isset($bookmark['tags']) ? array_column($bookmark['tags'], 'id') : [];
+            $tagsIds = isset($bookmark['tags']) ? $bookmark['tags'] : [];
             unset($bookmark['tags']);
 
             if (isset($bookmark['id']) && ctype_digit((string) $bookmark['id'])) {
@@ -138,14 +152,7 @@ class BookmarksRepository
             throw $e;
         }
     }
-    public function findLinkedTags($bookmarkId)
-    {
-        $tagsIds = $this->findLinkedTagsIds($bookmarkId);
 
-        return is_array($tagsIds)
-            ? $this->tagsRepository->findById($tagsIds)
-            : [];
-    }
     /**
      * Finds linked tags Ids.
      *
@@ -199,26 +206,7 @@ class BookmarksRepository
             );
         }
     }
-    /**
-     * Find one record.
-     *
-     * @param string $id Element id
-     *
-     * @return array|mixed Result
-     */
-    public function findOneById($id)
-    {
-        $queryBuilder = $this->queryAll();
-        $queryBuilder->where('b.id = :id')
-            ->setParameter(':id', $id, \PDO::PARAM_INT);
-        $result = $queryBuilder->execute()->fetch();
 
-        if ($result) {
-            $result['tags'] = $this->findLinkedTags($result['id']);
-        }
-
-        return $result;
-    }
     /**
      * Query all records.
      *

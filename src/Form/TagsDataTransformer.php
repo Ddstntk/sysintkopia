@@ -4,7 +4,7 @@
  */
 namespace Form;
 
-use Repository\TagRepository;
+use Repository\TagsRepository;
 use Symfony\Component\Form\DataTransformerInterface;
 
 /**
